@@ -1,6 +1,6 @@
 """Test cases for the isodatetime module."""
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import pytest
@@ -159,3 +159,28 @@ def test_format(datetimestring: str, expected: Optional[datetime], format: str, 
             datetime_isoformat(expected, format)  # type: ignore [arg-type]
     else:
         assert datetime_isoformat(expected, format) == output
+
+
+@pytest.mark.parametrize(
+    "tz, suffix",
+    [
+        (timezone.utc, "Z"),
+        (timezone(timedelta(0), "UTC"), "Z"),
+        (UTC, "Z"),
+        (timezone(timedelta(hours=5, minutes=30)), "+05:30"),
+        (timezone(-timedelta(hours=3, minutes=30)), "-03:30"),
+        (None, ""),
+    ],
+)
+def test_format_fixed_offset(tz, suffix):
+    dt = datetime(2024, 7, 2, 6, 6, 2, tzinfo=tz)
+    assert datetime_isoformat(dt) == "2024-07-02T06:06:02" + suffix
+
+
+def test_format_zero_offset_with_dst():
+    class DaylightOffset(FixedOffset):
+        def dst(self, dt):
+            return timedelta(hours=1)
+
+    dt = datetime(2024, 7, 2, 6, 6, 2, tzinfo=DaylightOffset())
+    assert datetime_isoformat(dt) == "2024-07-02T06:06:02+00:00"
